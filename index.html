@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GIF 컴프레서 — 해상도 그대로, 10MB 이하로</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{
+  --bg:#F4F6F9;
+  --surface:#FFFFFF;
+  --ink:#171C26;
+  --ink-2:#525A69;
+  --ink-3:#8B92A1;
+  --line:#E3E7EE;
+  --accent:#3B3BF9;
+  --accent-soft:#EDEDFF;
+  --accent-dim:#C9C9FC;
+  --ok:#0B9E5E;
+  --ok-soft:#E4F7EE;
+  --warn:#DD6B20;
+  --warn-soft:#FDEFE3;
+  --err:#D6355B;
+  --err-soft:#FCE9EE;
+  --radius:14px;
+  --radius-s:9px;
+  font-size:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR','Segoe UI',sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.55;
+}
+.wrap{max-width:860px;margin:0 auto;padding:40px 20px 80px}
+
+/* ── 헤더 ─────────────────────────── */
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:26px;flex-wrap:wrap}
+.brand h1{font-size:1.7rem;font-weight:800;letter-spacing:-0.02em;display:flex;align-items:center;gap:10px}
+.brand h1 .chip{
+  font-size:0.72rem;font-weight:700;color:var(--accent);
+  background:var(--accent-soft);border:1px solid var(--accent-dim);
+  padding:3px 9px;border-radius:99px;letter-spacing:0;
+  transform:translateY(-2px);
+}
+.brand p{color:var(--ink-2);font-size:0.92rem;margin-top:4px}
+.target-box{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-s);padding:8px 12px}
+.target-box label{font-size:0.82rem;color:var(--ink-2);font-weight:600}
+.target-box select{
+  font-family:inherit;font-size:0.88rem;font-weight:700;color:var(--accent);
+  border:none;background:transparent;cursor:pointer;outline:none;
+}
+
+/* ── 드롭존 ───────────────────────── */
+.dropzone{
+  position:relative;background:var(--surface);
+  border:2px dashed #C7CEDA;border-radius:var(--radius);
+  padding:52px 24px;text-align:center;cursor:pointer;
+  transition:border-color .18s, background .18s, transform .12s;
+  outline:none;
+}
+.dropzone:hover,.dropzone:focus-visible{border-color:var(--accent);background:#FBFBFF}
+.dropzone:focus-visible{box-shadow:0 0 0 3px var(--accent-dim)}
+.dropzone.dragover{border-color:var(--accent);background:var(--accent-soft);transform:scale(1.005)}
+.dz-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:64px;height:64px;border-radius:18px;margin-bottom:16px;
+  background:var(--accent);color:#fff;font-weight:800;font-size:1.05rem;letter-spacing:0.02em;
+  box-shadow:0 6px 18px rgba(59,59,249,.28);
+  user-select:none;
+}
+.dropzone h2{font-size:1.12rem;font-weight:700;letter-spacing:-0.01em}
+.dropzone h2 em{font-style:normal;color:var(--accent)}
+.dropzone p{color:var(--ink-3);font-size:0.86rem;margin-top:6px}
+.dropzone input{display:none}
+
+/* ── 안내 배지 ────────────────────── */
+.notes{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.note{
+  font-size:0.78rem;color:var(--ink-2);background:var(--surface);
+  border:1px solid var(--line);border-radius:99px;padding:5px 12px;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.note::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+/* ── 툴바 ─────────────────────────── */
+.toolbar{display:none;align-items:center;justify-content:space-between;margin:28px 0 12px;gap:12px;flex-wrap:wrap}
+.toolbar.show{display:flex}
+.toolbar .summary{font-size:0.88rem;color:var(--ink-2)}
+.toolbar .summary strong{color:var(--ink);font-weight:700}
+.toolbar .actions{display:flex;gap:8px}
+button{
+  font-family:inherit;font-size:0.85rem;font-weight:700;cursor:pointer;
+  border-radius:var(--radius-s);padding:9px 16px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);transition:background .15s,border-color .15s,opacity .15s;
+}
+button:hover{border-color:#B9C1CF}
+button:focus-visible{outline:3px solid var(--accent-dim);outline-offset:1px}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{background:#2F2FE0}
+button.ghost{background:transparent}
+
+/* ── 파일 카드 ────────────────────── */
+.cards{display:flex;flex-direction:column;gap:12px}
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;display:grid;grid-template-columns:64px 1fr auto;gap:16px;align-items:center;
+  animation:cardIn .28s ease both;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.card{animation:none}.dropzone{transition:none}}
+.thumb{
+  width:64px;height:64px;border-radius:10px;overflow:hidden;background:
+  repeating-conic-gradient(#E9ECF2 0% 25%, #F7F8FA 0% 50%) 0 0/16px 16px;
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+}
+.thumb img{width:100%;height:100%;object-fit:contain}
+.meta{min-width:0}
+.meta .name{font-weight:700;font-size:0.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.01em}
+.meta .sub{font-size:0.78rem;color:var(--ink-3);margin-top:2px;display:flex;gap:10px;flex-wrap:wrap}
+.meta .sub .dim::before{content:'□ '}
+.meta .sub .fr::before{content:'▸ '}
+
+/* 용량 게이지 — 시그니처 */
+.gauge{margin-top:10px}
+.gauge .bars{position:relative;height:22px}
+.gauge .bar{
+  position:absolute;left:0;height:8px;border-radius:99px;min-width:8px;
+  transition:width .5s cubic-bezier(.22,.9,.35,1);
+}
+.gauge .bar.orig{top:0;background:#D4D9E3}
+.gauge .bar.comp{top:12px;background:var(--accent)}
+.gauge .bar.comp.over{background:var(--warn)}
+.gauge .tick{
+  position:absolute;top:-3px;bottom:-1px;width:2px;background:var(--ink);
+  border-radius:2px;opacity:.55;
+}
+.gauge .tick::after{
+  content:attr(data-label);position:absolute;top:-15px;left:50%;transform:translateX(-50%);
+  font-size:0.64rem;font-weight:700;color:var(--ink-2);white-space:nowrap;
+}
+.gauge .legend{display:flex;gap:14px;margin-top:6px;font-size:0.74rem;color:var(--ink-3)}
+.gauge .legend b{color:var(--ink);font-weight:700}
+.gauge .legend .comp-val b{color:var(--accent)}
+.gauge .legend .comp-val.over b{color:var(--warn)}
+.saving{color:var(--ok);font-weight:700}
+
+/* 상태 & 진행 */
+.state{display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:130px}
+.status{
+  font-size:0.76rem;font-weight:700;padding:4px 11px;border-radius:99px;white-space:nowrap;
+}
+.status.wait{background:#EEF1F6;color:var(--ink-2)}
+.status.work{background:var(--accent-soft);color:var(--accent)}
+.status.done{background:var(--ok-soft);color:var(--ok)}
+.status.keep{background:#EEF1F6;color:var(--ink-2)}
+.status.warn{background:var(--warn-soft);color:var(--warn)}
+.status.err{background:var(--err-soft);color:var(--err)}
+.progress{width:130px;height:5px;border-radius:99px;background:#EAEDF3;overflow:hidden;display:none}
+.progress.show{display:block}
+.progress i{display:block;height:100%;width:0%;background:var(--accent);border-radius:99px;transition:width .25s}
+.dl{display:none;gap:6px}
+.dl.show{display:flex}
+.dl a{
+  text-decoration:none;font-size:0.8rem;font-weight:700;color:#fff;background:var(--accent);
+  padding:7px 14px;border-radius:var(--radius-s);transition:background .15s;
+}
+.dl a:hover{background:#2F2FE0}
+.dl a:focus-visible{outline:3px solid var(--accent-dim);outline-offset:1px}
+.remove{
+  background:none;border:none;color:var(--ink-3);font-size:0.76rem;padding:2px 4px;cursor:pointer;font-weight:600;
+}
+.remove:hover{color:var(--err);border:none}
+
+footer{margin-top:44px;text-align:center;color:var(--ink-3);font-size:0.78rem;line-height:1.7}
+footer b{color:var(--ink-2)}
+
+@media (max-width:600px){
+  .card{grid-template-columns:48px 1fr;gap:12px}
+  .thumb{width:48px;height:48px}
+  .state{grid-column:1 / -1;flex-direction:row;justify-content:space-between;align-items:center;min-width:0}
+  .gauge .tick::after{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>GIF 컴프레서 <span class="chip">해상도 유지</span></h1>
+      <p>애니메이션·정지 GIF를 화질 손실을 최소화하며 목표 용량 이하로 압축합니다.</p>
+    </div>
+    <div class="target-box">
+      <label for="target">목표 용량</label>
+      <select id="target">
+        <option value="10485760" selected>10 MB</option>
+        <option value="5242880">5 MB</option>
+        <option value="3145728">3 MB</option>
+        <option value="1048576">1 MB</option>
+      </select>
+    </div>
+  </header>
+
+  <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="GIF 파일 선택 또는 드래그">
+    <div class="dz-badge">GIF</div>
+    <h2>GIF 파일을 끌어다 놓거나 <em>클릭해서 선택</em></h2>
+    <p>여러 개를 한 번에 올릴 수 있어요 · 파일은 서버로 전송되지 않습니다</p>
+    <input type="file" id="fileInput" accept=".gif,image/gif" multiple>
+  </div>
+
+  <div class="notes">
+    <span class="note">가로·세로 해상도 변경 없음</span>
+    <span class="note">애니메이션 프레임·재생 속도 유지</span>
+    <span class="note">모든 처리는 내 브라우저 안에서</span>
+  </div>
+
+  <div class="toolbar" id="toolbar">
+    <div class="summary" id="summary"></div>
+    <div class="actions">
+      <button class="ghost" id="clearBtn">모두 지우기</button>
+      <button class="primary" id="zipBtn" disabled>전체 ZIP 다운로드</button>
+    </div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <footer>
+    압축 원리 — <b>스마트 팔레트 재구성</b>(프레임별 최적 256색)과 필요 시 <b>지능형 프레임 병합</b>을 단계적으로 적용해<br>
+    목표 용량 안에서 가장 높은 화질을 찾습니다. 이미 목표 이하이고 재압축 효과가 없으면 원본을 그대로 유지합니다.
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════
+   GIF 컴프레서 — 100% 클라이언트 사이드
+   1) 자체 GIF 파서(LZW 디코드, 디스포절/투명 처리)
+   2) gif.js(NeuQuant)로 재인코딩, 품질 → 프레임 병합 순 단계 압축
+═══════════════════════════════════════════════════════ */
+
+// ── gif.js 워커를 blob URL로 준비 (교차 출처 워커 제한 우회)
+let workerUrlPromise = fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js')
+  .then(r => r.text())
+  .then(t => URL.createObjectURL(new Blob([t], {type:'application/javascript'})));
+
+// ── GIF 파서 ──────────────────────────────────────────
+function parseGIF(buffer){
+  const d = new Uint8Array(buffer);
+  let p = 0;
+  const u16 = () => d[p++] | (d[p++] << 8);
+  const sig = String.fromCharCode(d[0],d[1],d[2],d[3],d[4],d[5]); p = 6;
+  if(!/^GIF8[79]a$/.test(sig)) throw new Error('GIF 형식이 아닙니다');
+  const width = u16(), height = u16();
+  const packed = d[p++]; p += 2; // bg, aspect
+  let gct = null;
+  if(packed & 0x80){ const n = 2 << (packed & 7); gct = d.slice(p, p + n*3); p += n*3; }
+  const frames = [];
+  let gce = null;
+  while(p < d.length){
+    const b = d[p++];
+    if(b === 0x3B) break;                 // trailer
+    if(b === 0x21){                       // extension
+      const label = d[p++];
+      if(label === 0xF9){                 // graphic control
+        p++;
+        const pk = d[p++];
+        const delay = u16();
+        const ti = d[p++];
+        p++;
+        gce = { disposal:(pk>>2)&7, transparent:(pk&1)? ti : null, delay };
+      } else {
+        while(p < d.length && d[p] !== 0){ p += d[p] + 1; }
+        p++;
+      }
+    } else if(b === 0x2C){                // image descriptor
+      const left=u16(), top=u16(), w=u16(), h=u16();
+      const pk = d[p++];
+      let lct = null;
+      if(pk & 0x80){ const n = 2 << (pk & 7); lct = d.slice(p, p + n*3); p += n*3; }
+      const minCode = d[p++];
+      const chunks = []; let total = 0;
+      while(p < d.length && d[p] !== 0){
+        const len = d[p++]; chunks.push(d.subarray(p, p+len)); total += len; p += len;
+      }
+      p++;
+      const data = new Uint8Array(total); let o = 0;
+      for(const c of chunks){ data.set(c, o); o += c.length; }
+      frames.push({ left, top, w, h, interlace:!!(pk & 0x40), lct, minCode, data,
+                    gce: gce || { disposal:0, transparent:null, delay:0 } });
+      gce = null;
+    } else {
+      while(p < d.length && d[p] !== 0){ p += d[p] + 1; }
+      p++;
+    }
+  }
+  if(!frames.length) throw new Error('프레임을 찾지 못했습니다');
+  return { width, height, gct, frames };
+}
+
+// ── LZW 디코드 (giflib 방식, 고속) ─────────────────────
+function lzwDecode(minCodeSize, data, out){
+  const MAX = 4096;
+  const prefix = new Int32Array(MAX);
+  const suffix = new Uint8Array(MAX);
+  const stack  = new Uint8Array(MAX + 1);
+  const clearCode = 1 << minCodeSize;
+  const eoi = clearCode + 1;
+  let codeSize = minCodeSize + 1;
+  let codeMask = (1 << codeSize) - 1;
+  let avail = eoi + 1;
+  let oldCode = -1, firstByte = 0;
+  let bits = 0, cur = 0, op = 0, sp = 0;
+  for(let i = 0; i < clearCode; i++){ prefix[i] = -1; suffix[i] = i; }
+  for(let bi = 0; bi < data.length; bi++){
+    cur |= data[bi] << bits; bits += 8;
+    while(bits >= codeSize){
+      let code = cur & codeMask; cur >>>= codeSize; bits -= codeSize;
+      if(code === clearCode){
+        codeSize = minCodeSize + 1; codeMask = (1 << codeSize) - 1;
+        avail = eoi + 1; oldCode = -1; continue;
+      }
+      if(code === eoi) return;
+      if(oldCode === -1){
+        if(code >= clearCode) continue;
+        out[op++] = suffix[code];
+        oldCode = code; firstByte = suffix[code];
+        if(op >= out.length) return;
+        continue;
+      }
+      const inCode = code;
+      if(code >= avail){ stack[sp++] = firstByte; code = oldCode; }
+      while(code >= clearCode){ stack[sp++] = suffix[code]; code = prefix[code]; }
+      firstByte = suffix[code];
+      stack[sp++] = firstByte;
+      if(avail < MAX){
+        prefix[avail] = oldCode; suffix[avail] = firstByte; avail++;
+        if((avail & codeMask) === 0 && avail < MAX){ codeSize++; codeMask = (codeMask << 1) | 1; }
+      }
+      oldCode = inCode;
+      while(sp > 0){ out[op++] = stack[--sp]; if(op >= out.length) return; }
+    }
+  }
+}
+
+function deinterlace(pix, w, h){
+  const out = new Uint8Array(pix.length);
+  const passes = [[0,8],[4,8],[2,4],[1,2]];
+  let src = 0;
+  for(const [start, step] of passes){
+    for(let y = start; y < h; y += step){
+      out.set(pix.subarray(src, src + w), y * w);
+      src += w;
+    }
+  }
+  pix.set(out);
+}
+
+/* 프레임을 순서대로 합성하며 콜백에 넘긴다 (스트리밍 — 메모리 절약)
+   cb(ctx, delayMs, index) — ctx에는 해당 시점의 완성 화면이 그려져 있음 */
+async function walkFrames(parsed, cb){
+  const { width, height, gct, frames } = parsed;
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently:true });
+  let prevSnapshot = null;
+  for(let i = 0; i < frames.length; i++){
+    const f = frames[i];
+    const { disposal, transparent, delay } = f.gce;
+    if(disposal === 3) prevSnapshot = ctx.getImageData(0, 0, width, height);
+    const indices = new Uint8Array(f.w * f.h);
+    lzwDecode(f.minCode, f.data, indices);
+    if(f.interlace) deinterlace(indices, f.w, f.h);
+    const palette = f.lct || gct;
+    if(palette){
+      const region = ctx.getImageData(f.left, f.top, f.w, f.h);
+      const px = region.data;
+      for(let k = 0; k < indices.length; k++){
+        const idx = indices[k];
+        if(idx === transparent) continue;
+        const pi = idx * 3, o = k * 4;
+        px[o] = palette[pi]; px[o+1] = palette[pi+1]; px[o+2] = palette[pi+2]; px[o+3] = 255;
+      }
+      ctx.putImageData(region, f.left, f.top);
+    }
+    let ms = delay * 10;
+    if(ms < 20) ms = 100; // 브라우저 관례
+    await cb(ctx, ms, i);
+    if(disposal === 2) ctx.clearRect(f.left, f.top, f.w, f.h);
+    else if(disposal === 3 && prevSnapshot) ctx.putImageData(prevSnapshot, 0, 0);
+    if(i % 8 === 7) await new Promise(r => setTimeout(r)); // UI 양보
+  }
+}
+
+// ── 재인코딩 (한 번의 시도) ─────────────────────────────
+async function encodeAttempt(parsed, opts, onProgress){
+  const workerScript = await workerUrlPromise;
+  const { quality, skip, dither, hasAlpha } = opts;
+  const { width, height, frames } = parsed;
+  const gif = new GIF({
+    workers: 2,
+    quality,
+    width, height,
+    dither: dither || false,
+    transparent: hasAlpha ? 0xFF00FF : null,
+    repeat: 0,
+    workerScript
+  });
+  // 합성용 캔버스
+  const cv = document.createElement('canvas');
+  cv.width = width; cv.height = height;
+  const cx = cv.getContext('2d', { willReadFrequently:true });
+  const tmp = document.createElement('canvas');
+  tmp.width = width; tmp.height = height;
+  const tctx = tmp.getContext('2d');
+
+  let pendingDelay = 0;
+  const total = frames.length;
+  await walkFrames(parsed, async (ctx, ms, i) => {
+    pendingDelay += ms;
+    const keep = (i % skip === 0) || (i === total - 1 && (i % skip !== 0) && false);
+    if(i % skip === 0){
+      tctx.clearRect(0, 0, width, height);
+      tctx.drawImage(ctx.canvas, 0, 0);
+      cx.clearRect(0, 0, width, height);
+      if(hasAlpha){ cx.fillStyle = '#FF00FF'; cx.fillRect(0, 0, width, height); }
+      cx.drawImage(tmp, 0, 0);
+      gif.addFrame(cx, { copy:true, delay: pendingDelay });
+      pendingDelay = 0;
+    }
+    onProgress(0.5 * (i + 1) / total);
+  });
+
+  return new Promise((resolve, reject) => {
+    gif.on('progress', p => onProgress(0.5 + p * 0.5));
+    gif.on('finished', blob => resolve(blob));
+    try { gif.render(); } catch(e){ reject(e); }
+  });
+}
+
+// 투명 픽셀 존재 여부 검사 (첫 패스에서)
+async function analyze(parsed){
+  let hasAlpha = false;
+  let totalMs = 0;
+  await walkFrames(parsed, async (ctx, ms, i) => {
+    totalMs += ms;
+    if(!hasAlpha && (i === 0 || i === parsed.frames.length - 1)){
+      const a = ctx.getImageData(0, 0, parsed.width, parsed.height).data;
+      for(let k = 3; k < a.length; k += 4){
+        if(a[k] === 0){ hasAlpha = true; break; }
+      }
+    }
+  });
+  return { hasAlpha, totalMs };
+}
+
+// ── 단계 압축: 품질 → 프레임 병합 순 ────────────────────
+async function compressToTarget(parsed, targetBytes, origSize, hasAlpha, onStage, onProgress){
+  const multi = parsed.frames.length > 1;
+  const ladder = multi
+    ? [ { quality: 8,  skip: 1 },
+        { quality: 16, skip: 1 },
+        { quality: 30, skip: 1 },
+        { quality: 20, skip: 2 },
+        { quality: 30, skip: 2 },
+        { quality: 30, skip: 3 } ]
+    : [ { quality: 5,  skip: 1 },
+        { quality: 15, skip: 1 },
+        { quality: 30, skip: 1 } ];
+
+  let best = null;
+  for(let s = 0; s < ladder.length; s++){
+    const step = { ...ladder[s], hasAlpha };
+    onStage(s + 1, ladder.length, step);
+    const blob = await encodeAttempt(parsed, step, onProgress);
+    if(!best || blob.size < best.blob.size) best = { blob, step };
+    if(blob.size <= targetBytes) return { ...{ blob, step }, metTarget: true };
+    // 목표 대비 3배 이상 크면 중간 단계 건너뛰기
+    if(multi && blob.size > targetBytes * 3 && s < 2) { /* 다음 루프에서 자연 진행 */ }
+  }
+  return { ...best, metTarget: best.blob.size <= targetBytes };
+}
+
+// ═══ UI ════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const dropzone = $('dropzone'), fileInput = $('fileInput');
+const cardsEl = $('cards'), toolbar = $('toolbar'), summaryEl = $('summary');
+const zipBtn = $('zipBtn'), clearBtn = $('clearBtn'), targetSel = $('target');
+
+const items = [];        // {id, file, name, blobOut, state, el:{...}}
+let processing = false;
+
+const fmt = b => {
+  if(b >= 1048576) return (b / 1048576).toFixed(b >= 10485760 ? 1 : 2) + ' MB';
+  if(b >= 1024) return Math.round(b / 1024) + ' KB';
+  return b + ' B';
+};
+
+function targetBytes(){ return parseInt(targetSel.value, 10); }
+function targetLabel(){ return targetSel.options[targetSel.selectedIndex].text; }
+
+// 드롭존 이벤트
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fileInput.click(); }});
+fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
+['dragover','dragenter'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('dragover'); }));
+['dragleave','drop'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('dragover'); }));
+dropzone.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+
+function addFiles(fileList){
+  const gifs = [...fileList].filter(f => f.type === 'image/gif' || /\.gif$/i.test(f.name));
+  if(!gifs.length) return;
+  for(const file of gifs){
+    const id = 'f' + Math.random().toString(36).slice(2, 9);
+    const item = { id, file, state:'wait', blobOut:null, info:null };
+    items.push(item);
+    renderCard(item);
+  }
+  updateToolbar();
+  runQueue();
+}
+
+function renderCard(item){
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = item.id;
+  const url = URL.createObjectURL(item.file);
+  card.innerHTML = `
+    <div class="thumb"><img alt="" src="${url}"></div>
+    <div class="meta">
+      <div class="name" title="${item.file.name}">${item.file.name}</div>
+      <div class="sub">
+        <span>원본 ${fmt(item.file.size)}</span>
+        <span class="dim" data-role="dim">분석 중…</span>
+        <span class="fr" data-role="fr"></span>
+      </div>
+      <div class="gauge">
+        <div class="bars">
+          <div class="tick" data-role="tick" data-label="${targetLabel()}"></div>
+          <div class="bar orig" data-role="barOrig"></div>
+          <div class="bar comp" data-role="barComp" style="width:0"></div>
+        </div>
+        <div class="legend">
+          <span>원본 <b data-role="lgOrig">${fmt(item.file.size)}</b></span>
+          <span class="comp-val" data-role="lgCompWrap">압축 <b data-role="lgComp">—</b></span>
+          <span class="saving" data-role="saving"></span>
+        </div>
+      </div>
+    </div>
+    <div class="state">
+      <span class="status wait" data-role="status">대기</span>
+      <div class="progress" data-role="progress"><i></i></div>
+      <div class="dl" data-role="dl"></div>
+      <button class="remove" data-role="remove">제거</button>
+    </div>`;
+  cardsEl.appendChild(card);
+  item.el = {
+    card,
+    dim: card.querySelector('[data-role=dim]'),
+    fr: card.querySelector('[data-role=fr]'),
+    tick: card.querySelector('[data-role=tick]'),
+    barOrig: card.querySelector('[data-role=barOrig]'),
+    barComp: card.querySelector('[data-role=barComp]'),
+    lgComp: card.querySelector('[data-role=lgComp]'),
+    lgCompWrap: card.querySelector('[data-role=lgCompWrap]'),
+    saving: card.querySelector('[data-role=saving]'),
+    status: card.querySelector('[data-role=status]'),
+    progress: card.querySelector('[data-role=progress]'),
+    progressBar: card.querySelector('[data-role=progress] i'),
+    dl: card.querySelector('[data-role=dl]'),
+  };
+  card.querySelector('[data-role=remove]').addEventListener('click', () => {
+    const i = items.indexOf(item);
+    if(i > -1) items.splice(i, 1);
+    card.remove();
+    URL.revokeObjectURL(url);
+    updateToolbar();
+  });
+  drawGauge(item, null);
+}
+
+function drawGauge(item, compSize){
+  const t = targetBytes();
+  const maxVal = Math.max(item.file.size, t) * 1.06;
+  const pct = v => Math.max(1.2, (v / maxVal) * 100) + '%';
+  item.el.tick.style.left = (t / maxVal) * 100 + '%';
+  item.el.tick.dataset.label = targetLabel();
+  item.el.barOrig.style.width = pct(item.file.size);
+  if(compSize != null){
+    item.el.barComp.style.width = pct(compSize);
+    const over = compSize > t;
+    item.el.barComp.classList.toggle('over', over);
+    item.el.lgCompWrap.classList.toggle('over', over);
+    item.el.lgComp.textContent = fmt(compSize);
+    const save = 1 - compSize / item.file.size;
+    item.el.saving.textContent = save > 0.005 ? '−' + Math.round(save * 100) + '%' : '';
+  }
+}
+
+function setStatus(item, cls, text){
+  item.el.status.className = 'status ' + cls;
+  item.el.status.textContent = text;
+}
+
+async function runQueue(){
+  if(processing) return;
+  processing = true;
+  while(true){
+    const item = items.find(i => i.state === 'wait');
+    if(!item) break;
+    item.state = 'working';
+    await processItem(item).catch(err => {
+      console.error(err);
+      item.state = 'error';
+      setStatus(item, 'err', '실패');
+      item.el.dim.textContent = err.message || '처리 오류';
+    });
+    updateToolbar();
+  }
+  processing = false;
+}
+
+async function processItem(item){
+  const t = targetBytes();
+  setStatus(item, 'work', '분석 중');
+  item.el.progress.classList.add('show');
+
+  const buffer = await item.file.arrayBuffer();
+  const parsed = parseGIF(buffer);
+
+  item.el.dim.textContent = `${parsed.width}×${parsed.height}`;
+  item.el.fr.textContent = parsed.frames.length > 1
+    ? `${parsed.frames.length}프레임 애니메이션` : '정지 이미지';
+
+  const { hasAlpha } = await analyze(parsed);
+
+  const setP = p => { item.el.progressBar.style.width = Math.round(p * 100) + '%'; };
+  const setStage = (n, total, step) => {
+    const label = step.skip > 1
+      ? `압축 ${n}/${total} · 프레임 병합 1/${step.skip}`
+      : `압축 ${n}/${total}`;
+    setStatus(item, 'work', label);
+    setP(0);
+  };
+
+  const result = await compressToTarget(parsed, t, item.file.size, hasAlpha, setStage, setP);
+  item.el.progress.classList.remove('show');
+
+  // 재압축 결과가 원본보다 크면 원본 유지
+  let outBlob, kept = false;
+  if(result.blob.size >= item.file.size){
+    outBlob = new Blob([buffer], { type:'image/gif' });
+    kept = true;
+  } else {
+    outBlob = result.blob;
+  }
+  item.blobOut = outBlob;
+  item.state = 'done';
+  drawGauge(item, outBlob.size);
+
+  if(kept && item.file.size <= t){
+    setStatus(item, 'keep', '원본 유지 · 이미 최적');
+  } else if(outBlob.size <= t){
+    setStatus(item, 'done', '완료 · ' + targetLabel() + ' 이하');
+  } else {
+    setStatus(item, 'warn', '최대 압축 · 목표 초과');
+  }
+
+  const a = document.createElement('a');
+  a.textContent = '다운로드';
+  a.href = URL.createObjectURL(outBlob);
+  a.download = item.file.name.replace(/\.gif$/i, '') + '_compressed.gif';
+  item.el.dl.appendChild(a);
+  item.el.dl.classList.add('show');
+}
+
+function updateToolbar(){
+  toolbar.classList.toggle('show', items.length > 0);
+  const done = items.filter(i => i.state === 'done');
+  const origTotal = items.reduce((s, i) => s + i.file.size, 0);
+  const compTotal = done.reduce((s, i) => s + i.blobOut.size, 0);
+  let text = `<strong>${items.length}개</strong> 파일 · 원본 합계 <strong>${fmt(origTotal)}</strong>`;
+  if(done.length){
+    const saved = done.reduce((s, i) => s + (i.file.size - i.blobOut.size), 0);
+    text += ` · 절감 <strong style="color:var(--ok)">${fmt(Math.max(saved, 0))}</strong>`;
+  }
+  summaryEl.innerHTML = text;
+  zipBtn.disabled = done.length < 1;
+}
+
+clearBtn.addEventListener('click', () => {
+  items.length = 0;
+  cardsEl.innerHTML = '';
+  updateToolbar();
+});
+
+zipBtn.addEventListener('click', async () => {
+  const done = items.filter(i => i.state === 'done' && i.blobOut);
+  if(!done.length) return;
+  zipBtn.disabled = true;
+  zipBtn.textContent = 'ZIP 생성 중…';
+  const zip = new JSZip();
+  for(const i of done){
+    zip.file(i.file.name.replace(/\.gif$/i, '') + '_compressed.gif', i.blobOut);
+  }
+  const blob = await zip.generateAsync({ type:'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'compressed_gifs.zip';
+  a.click();
+  zipBtn.textContent = '전체 ZIP 다운로드';
+  zipBtn.disabled = false;
+});
+
+// 목표 용량 변경 시 게이지 갱신
+targetSel.addEventListener('change', () => {
+  for(const item of items) drawGauge(item, item.blobOut ? item.blobOut.size : null);
+});
+</script>
+</body>
+</html>
